@@ -5,6 +5,7 @@ class TcpSvr
 {
 public:
 	TcpSvr(char * ip, unsigned short port);
+    TcpSvr(char * sock_path);
 	~TcpSvr();
 
 	int SetNonBlocking();
@@ -16,7 +17,7 @@ public:
 private:
 	std::string ip;
 	unsigned short port;
-
 	int svr_fd;
+
+	bool sockfile_flag;
 };
-#endif
