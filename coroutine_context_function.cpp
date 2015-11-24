@@ -17,6 +17,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+
+static ucontext_t first_context_t, last_context_t;
+
 void test_func()
 {
 	for(int i = 0; i < 1000; i++)
@@ -40,7 +43,7 @@ void test_func1()
 
 void coroutine_test()
 {
-    ucontext_t first_context_t, last_context_t;
+//    ucontext_t first_context_t, last_context_t;
 
 	char stack[1024 * 1024] = {0};
 	getcontext(&first_context_t);
@@ -52,6 +55,7 @@ void coroutine_test()
 	makecontext(&first_context_t, test_func, 0);
 
 	swapcontext(&last_context_t, &first_context_t);
+	printf("%s\n", first_context_t.uc_stack.ss_sp);
 
 	printf("coroutine_test\n");
 
