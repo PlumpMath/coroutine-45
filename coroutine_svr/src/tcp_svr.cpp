@@ -12,7 +12,7 @@ TcpSvr::TcpSvr(char * ip, unsigned short port)
 
 TcpSvr::TcpSvr(char * sock_path)
 {
-	svr_fd = socket(AF_INET, SOCK_STREAM);
+	svr_fd = socket(AF_INET, SOCK_STREAM, 0);
 	sockfile_flag = true;
 }
 
