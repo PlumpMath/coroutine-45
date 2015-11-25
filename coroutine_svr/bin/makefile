@@ -1,4 +1,6 @@
+#makefile
 
+#macro definition
 CFLAGS = -c -Wall
 OFLAGS = -o
 CppCompile = g++
@@ -9,14 +11,16 @@ exe = coroutine_svr_main
 #OBJECT
 OBJS =$(patsubst %.cpp,%.o,$(wildcard ../src/*.cpp))
 OBJS += $(patsubst %.c,%.o,$(wildcard ../src/*.c))
+HEADDIR=-I../include
+
 
 VPATH =../include:../src
 
 $(exe): $(OBJS)
-	$(CppCompile) $(OFLAGS) $@ $^ 
+	$(CppCompile) $(OFLAGS) $@ $^ $(HEADDIR)
 
 *.o: *.cpp
-	$(CppCompile) $(CFLAGS) $@ $^ 
+	$(CppCompile) $(CFLAGS) $^ $(HEADDIR)  
 
 .PHONY: clean
 clean:
