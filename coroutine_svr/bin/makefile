@@ -1,27 +1,35 @@
 #makefile
+#coroutine_svr project makfile
 
 #macro definition
-CFLAGS = -c -Wall
+COMPILE = g++
+WARNING = -Wall
+CFLAGS = -c
 OFLAGS = -o
-CppCompile = g++
-LIBLINK = -ldl -lpthread
-exe = coroutine_svr_main
 
+#lib 
+LIBLINK = -ldl -lpthread
+
+#visual path
+VPATH = ../include:../src
+
+#exe file
+EXE = coroutine_svr_main
 
 #OBJECT
-OBJS =$(patsubst %.cpp,%.o,$(wildcard ../src/*.cpp))
-OBJS += $(patsubst %.c,%.o,$(wildcard ../src/*.c))
-HEADDIR=-I../include
+OBJS =$(notdir $(patsubst %.cpp,%.o,$(wildcard ../src/*.cpp)))
 
+#INCLUDE DIRECTORY.
+INC=-I../include
 
-VPATH =../include:../src
+#link all .o to exe file.
+$(EXE): $(OBJS)
+	$(COMPILE) $(OFLAGS) $@ $^
 
-$(exe): $(OBJS)
-	$(CppCompile) $(OFLAGS) $@ $^ $(HEADDIR)
-
-*.o: *.cpp
-	$(CppCompile) $(CFLAGS) $^ $(HEADDIR)  
+#compile all cpp file to .o file.
+%.o: %.cpp
+	$(COMPILE) $(WARNING) $(INC) $(CFLAGS) $^
 
 .PHONY: clean
 clean:
-	rm $(exe) $(OBJS)
+	@rm -rf $(exe) $(OBJS)
