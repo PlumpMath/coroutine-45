@@ -32,7 +32,7 @@ LINKS += -g -L./lib -lcolib -lpthread -ldl
 COLIB_OBJS=co_routine.o co_hook_sys_call.o coctx_swap.o coctx.o
 #co_swapcontext.o
 
-PROGS = colib example_poll example_echosvr example_echocli example_thread example_get_url  
+PROGS = colib example_poll example_echosvr example_echocli example_thread  
 
 all:$(PROGS)
 
@@ -54,8 +54,7 @@ example_thread:example_thread.o
 
 example_poll:example_poll.o
 	$(BUILDEXE) 
-example_get_url:example_get_url.o
-	$(BUILDEXE)
+
 
 dist: clean libco-$(version).src.tar.gz
 

@@ -19,7 +19,7 @@
 
 
 #include "co_routine.h"
-#include <errno.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -32,8 +32,6 @@
 #include <fcntl.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-#include <string>
-#include <iostream>
 
 using namespace std;
 struct task_t
@@ -42,6 +40,7 @@ struct task_t
 	int fd;
 };
 
+static stack<task_t*> g_readwrite;
 static int g_listen_fd = -1;
 static int SetNonBlock(int iSock)
 {
@@ -61,44 +60,59 @@ static void *readwrite_routine( void *arg )
 
 	task_t *co = (task_t*)arg;
 	char buf[ 1024 * 16 ];
-	int fd = co->fd;
-
 	for(;;)
 	{
-		struct pollfd pf = { 0 };
-		pf.fd = fd;
-		pf.events = (POLLIN|POLLERR|POLLHUP);
-		co_poll( co_get_epoll_ct(),&pf,1,10000);
-
-		memset(buf,0,sizeof(buf));
-
-		int ret = read( fd,buf,sizeof(buf) );
-
-		if( ret > 0 )
+		if( -1 == co->fd )
 		{
-			printf("recv data:%s\n",buf);
-			ret = write( fd,buf,ret );
+			g_readwrite.push( co );
+			co_yield_ct();
+			continue;
 		}
-		if( ret <= 0 )
+
+		int fd = co->fd;
+		co->fd = -1;
+
+		for(;;)
 		{
-			printf("connect closed\n");
-			close( fd );
-			break;
+			struct pollfd pf = { 0 };
+			pf.fd = fd;
+			pf.events = (POLLIN|POLLERR|POLLHUP);
+			co_poll( co_get_epoll_ct(),&pf,1,1000);
+
+			int ret = read( fd,buf,sizeof(buf) );
+			if( ret > 0 )
+			{
+				ret = write( fd,buf,ret );
+			}
+			if( ret <= 0 )
+			{
+				close( fd );
+				break;
+			}
 		}
+
 	}
-
 	return 0;
 }
 int co_accept(int fd, struct sockaddr *addr, socklen_t *len );
 static void *accept_routine( void * )
 {
 	co_enable_hook_sys();
-
 	printf("accept_routine\n");
-
+	fflush(stdout);
 	for(;;)
 	{
+		//printf("pid %ld g_readwrite.size %ld\n",getpid(),g_readwrite.size());
+		if( g_readwrite.empty() )
+		{
+			printf("empty\n"); //sleep
+			struct pollfd pf = { 0 };
+			pf.fd = -1;
+			poll( &pf,1,1000);
 
+			continue;
+
+		}
 		struct sockaddr_in addr; //maybe sockaddr_un;
 		memset( &addr,0,sizeof(addr) );
 		socklen_t len = sizeof(addr);
@@ -109,17 +123,19 @@ static void *accept_routine( void * )
 			struct pollfd pf = { 0 };
 			pf.fd = g_listen_fd;
 			pf.events = (POLLIN|POLLERR|POLLHUP);
-			co_poll( co_get_epoll_ct(),&pf,1,2000 );
+			co_poll( co_get_epoll_ct(),&pf,1,1000 );
 			continue;
 		}
-
+		if( g_readwrite.empty() )
+		{
+			close( fd );
+			continue;
+		}
 		SetNonBlock( fd );
-
-		task_t * task = (task_t*)calloc( 1,sizeof(task_t) );
-		task->fd =fd;
-		co_create( &(task->co),NULL,readwrite_routine,task );
-		co_resume( task->co );
-
+		task_t *co = g_readwrite.top();
+		co->fd = fd;
+		g_readwrite.pop();
+		co_resume( co->co );
 	}
 	return 0;
 }
@@ -173,16 +189,10 @@ static int CreateTcpSocket(const unsigned short shPort /* = 0 */,const char *psz
 
 int main(int argc,char *argv[])
 {
-
-	if(argc < 4)
-	{
-		cout<<"usage:"<<argv[0]<<" ip port cnt"<<endl;
-		return 0;
-	}
-
 	const char *ip = argv[1];
 	int port = atoi( argv[2] );
 	int cnt = atoi( argv[3] );
+	int proccnt = atoi( argv[4] );
 
 	g_listen_fd = CreateTcpSocket( port,ip,true );
 	listen( g_listen_fd,1024 );
@@ -190,14 +200,35 @@ int main(int argc,char *argv[])
 
 	SetNonBlock( g_listen_fd );
 
-	stCoRoutine_t *accept_co = NULL;
-	co_create( &accept_co,NULL,accept_routine,0 );
-	co_resume( accept_co );
+	for(int k=0;k<proccnt;k++)
+	{
 
-	co_eventloop( co_get_epoll_ct(),0,0 );
+		pid_t pid = fork();
+		if( pid > 0 )
+		{
+			continue;
+		}
+		else if( pid < 0 )
+		{
+			break;
+		}
+		for(int i=0;i<cnt;i++)
+		{
+			task_t * task = (task_t*)calloc( 1,sizeof(task_t) );
+			task->fd = -1;
 
-	exit(0);
+			co_create( &(task->co),NULL,readwrite_routine,task );
+			co_resume( task->co );
 
+		}
+		stCoRoutine_t *accept_co = NULL;
+		co_create( &accept_co,NULL,accept_routine,0 );
+		co_resume( accept_co );
+
+		co_eventloop( co_get_epoll_ct(),0,0 );
+
+		exit(0);
+	}
 	return 0;
 }
 
