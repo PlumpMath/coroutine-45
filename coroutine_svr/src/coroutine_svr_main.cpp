@@ -1,4 +1,5 @@
 #include "co_routine.h"
+#include "redis_client.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,6 +13,7 @@
 #include <fcntl.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <string>
 
 using namespace std;
 struct task_t
@@ -62,7 +64,13 @@ static void *readwrite_routine( void *arg )
 			int ret = read( fd,buf,sizeof(buf) );
 			if( ret > 0 )
 			{
-				ret = write( fd,buf,ret );
+				RedisClient redisClient;
+				redisClient.Init((char *)"127.0.0.1", 6379);
+				redisClient.Connect();
+				std::string redisInfo;
+				redisClient.RedisInfo(redisInfo);
+
+				ret = write( fd, redisInfo.c_str(), redisInfo.length());
 			}
 			if( ret <= 0 )
 			{
