@@ -22,6 +22,8 @@ struct task_t
 	int fd;
 };
 
+static RedisClient redisClient;
+
 static stack<task_t*> g_readwrite;
 static int g_listen_fd = -1;
 static int SetNonBlock(int iSock)
@@ -64,8 +66,6 @@ static void *readwrite_routine( void *arg )
 			int ret = read( fd,buf,sizeof(buf) );
 			if( ret > 0 )
 			{
-				RedisClient redisClient;
-				redisClient.Init((char *)"127.0.0.1", 6379);
 				redisClient.Connect();
 				std::string redisInfo;
 				redisClient.RedisInfo(redisInfo);
@@ -189,6 +189,8 @@ int main(int argc,char *argv[])
 	const char *ip = argv[1];
 	int port = atoi( argv[2] );
 	int cnt = atoi( argv[3] );
+
+	redisClient.Init((char *)"127.0.0.1", 6379);
 
 	g_listen_fd = CreateTcpSocket( port,ip,true );
 	listen( g_listen_fd,1024 );
